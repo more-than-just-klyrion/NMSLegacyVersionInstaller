@@ -19,6 +19,11 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Install .NET Framework 4.6 targeting pack
+        shell: pwsh
+        run: |
+          choco install netfx-4.6-devpack -y --no-progress
+
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
 
