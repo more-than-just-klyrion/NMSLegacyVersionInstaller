@@ -34,13 +34,16 @@ jobs:
         if: failure() && steps.msbuild.outcome == 'failure'
         shell: pwsh
         run: |
-          $tail = (Get-Content build.log -Tail 200) -join "`n"
-          $body = "Build failed. Last 200 lines of msbuild output:`n`n``````n$tail`n``````"
-          $json = @{ body = $body } | ConvertTo-Json
+          $lines = Get-Content build.log -Tail 200
+          $tail = [string]::Join("`n", $lines)
+          $body = "Build failed. Last 200 lines of msbuild output:`n`n" + $tail
+          $payload = @{ body = $body }
+          $json = ConvertTo-Json -InputObject $payload -Compress
           $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
           Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/commits/$env:GITHUB_SHA/comments" -Method Post -Headers $headers -Body $json -ContentType "application/json"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
       - name: Locate build output
