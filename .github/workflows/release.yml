@@ -6,6 +6,9 @@ on:
       - "v*"
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -33,14 +36,20 @@ jobs:
       - name: Post build log on failure
         if: failure() && steps.msbuild.outcome == 'failure'
         shell: pwsh
+        continue-on-error: true
         run: |
-          $lines = Get-Content build.log -Tail 200
-          $tail = [string]::Join("`n", $lines)
-          $body = "Build failed. Last 200 lines of msbuild output:`n`n" + $tail
-          $payload = @{ body = $body }
-          $json = ConvertTo-Json -InputObject $payload -Compress
-          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
-          Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/commits/$env:GITHUB_SHA/comments" -Method Post -Headers $headers -Body $json -ContentType "application/json"
+          try {
+            $lines = Get-Content build.log -Tail 200
+            $tail = [string]::Join("`n", $lines)
+            $body = "Build failed. Last 200 lines of msbuild output:`n`n" + $tail
+            $payload = @{ body = $body }
+            $json = ConvertTo-Json -InputObject $payload -Compress
+            $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
+            Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/commits/$env:GITHUB_SHA/comments" -Method Post -Headers $headers -Body $json -ContentType "application/json"
+          } catch {
+            $msg = $_.Exception.Message -replace "`n"," " -replace "`r",""
+            Write-Output "::error::Failed to post log comment: $msg"
+          }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
